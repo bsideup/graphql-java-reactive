@@ -7,7 +7,6 @@
 - [Overview](#overview)
 - [Hello World](#hello-world)
 - [Migration](#migration)
-- [API](#api)
 - [License](#license)
  
  ## Overview
