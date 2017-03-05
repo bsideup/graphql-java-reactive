@@ -38,7 +38,9 @@ dependencies {
     compile 'org.webjars.npm:rx:4.1.0'
     compile 'org.webjars.npm:rx-connect:0.6.1'
     compile 'org.webjars.npm:babel-standalone:6.23.1'
-    compile 'org.webjars.npm:recharts:0.21.2'
+    compile ('org.webjars.npm:recharts:0.21.2') {
+        exclude group: "org.webjars.npm"
+    }
 
     testCompile 'org.springframework.boot:spring-boot-starter-test'
 }
