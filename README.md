@@ -9,6 +9,7 @@
 - [Migration](#migration)
 - [License](#license)
  
+ 
  ## Overview
  While GraphQL allows you to define very rich queries with multiple levels of depth, it is not possible to track the data changes efficiently. Once you received the data, you have to poll your GraphQL API.  Moreover, even if a single field changed the whole object will be sent.
 
