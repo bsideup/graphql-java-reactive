@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<div id="root"></div>
+
+<script src="webjars/react/react-with-addons.min.js"></script>
+<script src="webjars/react-dom/react-dom.min.js"></script>
+<script src="webjars/babel-standalone/babel.min.js"></script>
+<script src="webjars/rx/rx.all.min.js"></script>
+<script src="webjars/rx-connect/rx-connect.min.js"></script>
+<script src="webjars/recharts/umd/Recharts.min.js"></script>
+<script src="webjars/updeep/dist/umd/updeep-standalone.min.js"></script>
+<script id="app" type="text/template">
+
+    const { rxConnect } = RxConnect;
+
+    const { AreaChart, YAxis, CartesianGrid, Area } = Recharts;
+
+    class App extends React.Component {
+        render() {
+            return (
+                <div>
+                    <AreaChart width={800} height={300} data={this.props.data} margin={{top: 50}}>
+                        <YAxis label="Memory, Mb"/>
+                        <Area isAnimationActive={false} type='monotone' dataKey={ it => (it.memory.allocated - it.memory.free) / 1000000 } stroke='#82ca9d' fill='#82ca9d' />
+                    </AreaChart>
+                    <AreaChart width={800} height={300} data={this.props.data} margin={{top: 50}}>
+                        <YAxis label="CPU, %"/>
+                        <Area isAnimationActive={false} type='monotone' dataKey="cpu" stroke='#82ca9d' fill='#82ca9d' />
+                    </AreaChart>
+                </div>
+            );
+        }
+    }
+
+    const selector = Rx.Observable
+        .create(observer => {
+            const query = `{
+                serverStats {
+                    cpu,
+                    memory {
+                        allocated,
+                        free
+                    }
+                }
+            }`;
+
+            // Subscribe to SSE source
+            const source = new EventSource("/graphql?query=" + encodeURIComponent(query));
+            source.onmessage = it => {
+                if (it.type === "message") {
+                    observer.next(JSON.parse(it.data));
+                }
+            };
+            source.onerror = e => e.eventPhase === 2 ? observer.complete() : observer.error(e);
+
+            return () => source.close();
+        })
+        .retry()
+        .repeatWhen(it$ => it$.delay(1000))
+        // Apply changes
+        .scan((acc, change) => change.path.length == 0 ? change.data : updeep.updateIn(change.path, change.data, acc), {})
+        // Draw current value every 100ms
+        .switchMap(stats => Rx.Observable.timer(0, 100).map(() => state => ({
+            ...state,
+            data: [...(state.data || []), stats.serverStats].slice(-200)
+        })));
+
+    const Container = rxConnect(selector)(App);
+
+    ReactDOM.render(<Container />, document.getElementById("root"));
+</script>
+<script>
+    eval(Babel.transform(document.getElementById("app").innerHTML, { presets: ['stage-0', 'react'] }).code);
+</script>
+</body>
+</html>

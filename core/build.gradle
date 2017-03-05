@@ -1,0 +1,13 @@
+dependencies {
+    compileOnly 'com.graphql-java:graphql-java:2.3.0'
+
+    // TODO shade?
+    compile 'io.reactivex.rxjava2:rxjava:2.0.5'
+
+    testCompile 'com.graphql-java:graphql-java:2.3.0'
+    testCompile 'org.slf4j:slf4j-simple:1.7.24'
+    testCompile 'com.google.guava:guava:21.0'
+    testCompile 'org.apache.commons:commons-lang3:3.5'
+    testCompile "io.projectreactor:reactor-core:3.0.5.RELEASE"
+    testCompile "io.projectreactor.addons:reactor-test:3.0.5.RELEASE"
+}

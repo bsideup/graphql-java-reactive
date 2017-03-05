@@ -1,0 +1,44 @@
+buildscript {
+    ext {
+        springBootVersion = '2.0.0.BUILD-SNAPSHOT'
+    }
+    repositories {
+        jcenter()
+        maven { url "https://repo.spring.io/snapshot" }
+        maven { url "https://repo.spring.io/milestone" }
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'org.springframework.boot'
+
+sourceCompatibility = 1.8
+
+repositories {
+    jcenter()
+    maven { url "https://repo.spring.io/snapshot" }
+    maven { url "https://repo.spring.io/milestone" }
+}
+
+dependencies {
+    compile 'org.springframework.boot:spring-boot-starter-webflux'
+
+    compile project(":core")
+    compile 'com.graphql-java:graphql-java:2.3.0'
+    compile 'com.google.guava:guava:21.0'
+
+    compile 'org.webjars:webjars-locator:0.30'
+    compile 'org.webjars.npm:react:15.4.2'
+    compile 'org.webjars.npm:react-dom:15.4.2'
+    compile 'org.webjars.npm:updeep:1.0.0'
+    compile 'org.webjars.npm:rx:4.1.0'
+    compile 'org.webjars.npm:rx-connect:0.6.1'
+    compile 'org.webjars.npm:babel-standalone:6.23.1'
+    compile 'org.webjars.npm:recharts:0.21.2'
+
+    testCompile 'org.springframework.boot:spring-boot-starter-test'
+}
