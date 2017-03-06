@@ -1,4 +1,4 @@
-# graphql-java-reactive
+# graphql-java-reactive [![Build Status](https://travis-ci.org/bsideup/graphql-java-reactive.svg?branch=master)](https://travis-ci.org/bsideup/graphql-java-reactive)
 
 [Reactive Streams](http://www.reactive-streams.org)-based execution strategy for http://github.com/graphql-java/graphql-java.
 
