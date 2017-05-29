@@ -2,8 +2,7 @@ package com.github.bsideup.graphql.reactive;
 
 import graphql.ExecutionResult;
 import graphql.ExecutionResultImpl;
-import graphql.execution.ExecutionContext;
-import graphql.execution.ExecutionStrategy;
+import graphql.execution.*;
 import graphql.language.Field;
 import graphql.schema.*;
 import io.reactivex.Flowable;
@@ -21,17 +20,30 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static graphql.execution.ExecutionParameters.newParameters;
 import static java.util.stream.Collectors.toList;
 
 public class ReactiveExecutionStrategy extends ExecutionStrategy {
 
     @Override
-    public ExecutionResult execute(ExecutionContext context, GraphQLObjectType parentType, Object source, Map<String, List<Field>> fields) {
+    public ExecutionResult execute(ExecutionContext context, ExecutionParameters parameters) throws NonNullableFieldWasNullException {
+        Map<String, List<Field>> fields = parameters.fields();
+        Object source = parameters.source();
         return complexChangesFlow(
                 context,
                 source,
                 __ -> fields.entrySet().stream(),
-                (entry, sourceValue) -> resolveField(new ReactiveContext(context, entry.getKey()), parentType, source == null ? null : sourceValue, entry.getValue()),
+                (entry, sourceValue) -> {
+                    ReactiveContext subContext = new ReactiveContext(context, entry.getKey());
+
+                    ExecutionParameters newParameters = newParameters()
+                            .typeInfo(parameters.typeInfo())
+                            .fields(parameters.fields())
+                            .arguments(parameters.arguments())
+                            .source(source == null ? null : sourceValue)
+                            .build();
+                    return resolveField(subContext, newParameters, entry.getValue());
+                },
                 results -> {
                     Map<Object, Object> result = new HashMap<>();
                     for (Object entry : results) {
@@ -59,12 +71,21 @@ public class ReactiveExecutionStrategy extends ExecutionStrategy {
     }
 
     @Override
-    protected ExecutionResult completeValue(ExecutionContext context, GraphQLType fieldType, List<Field> fields, Object result) {
-        result = adapt(result);
+    protected ExecutionResult completeValue(ExecutionContext context, ExecutionParameters parameters, List<Field> fields) {
+        Object result = adapt(parameters.source());
+        GraphQLType fieldType = parameters.typeInfo().type();
 
         if ((fieldType instanceof GraphQLScalarType || fieldType instanceof GraphQLEnumType) && result instanceof Publisher) {
             Flowable<Change> changesFlow = Flowable.fromPublisher((Publisher<?>) result)
-                    .map(it -> new Change(context, completeValue(context, fieldType, fields, it).getData()));
+                    .map(it -> {
+                        ExecutionParameters newParameters = newParameters()
+                                .source(it)
+                                .fields(parameters.fields())
+                                .typeInfo(parameters.typeInfo())
+                                .build();
+
+                        return new Change(context, completeValue(context, newParameters, fields).getData());
+                    });
 
             return new ExecutionResultImpl(changesFlow, null);
         }
@@ -86,7 +107,15 @@ public class ReactiveExecutionStrategy extends ExecutionStrategy {
                         AtomicInteger i = new AtomicInteger();
                         return stream.map(it -> new SimpleEntry<>(i.getAndIncrement(), adapt(it)));
                     },
-                    (entry, __) -> completeValue(new ReactiveContext(context, entry.getKey()), wrappedType, fields, entry.getValue()),
+                    (entry, __) -> {
+                        ExecutionParameters newParameters = ExecutionParameters.newParameters()
+                                .source(entry.getValue())
+                                .fields(parameters.fields())
+                                .arguments(parameters.arguments())
+                                .typeInfo(parameters.typeInfo().asType(wrappedType))
+                                .build();
+                        return completeValue(new ReactiveContext(context, entry.getKey()), newParameters, fields);
+                    },
                     results -> Stream.of(results)
                             .map(SimpleEntry.class::cast)
                             .sorted(Comparator.comparingInt(it -> (Integer) it.getKey()))
@@ -95,7 +124,7 @@ public class ReactiveExecutionStrategy extends ExecutionStrategy {
             );
         }
 
-        return super.completeValue(context, fieldType, fields, result);
+        return super.completeValue(context, parameters, fields);
     }
 
     protected <K, V> ExecutionResultImpl complexChangesFlow(

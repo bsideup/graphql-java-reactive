@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
 import java.lang.management.ManagementFactory;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +50,7 @@ public class GraphQLController {
                     .name("cpu")
                     .type(GraphQLFloat)
                     .dataFetcher(env -> Flux
-                            .intervalMillis(1000)
+                            .interval(Duration.ofSeconds(1))
                             .map(__ -> ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage())
                             // Ignore
                             .distinctUntilChanged(Double::intValue)
@@ -69,7 +70,7 @@ public class GraphQLController {
                                     .name("allocated")
                                     .type(GraphQLLong)
                                     .dataFetcher(env -> Flux
-                                            .intervalMillis(1000)
+                                            .interval(Duration.ofSeconds(1))
                                             .map(__ -> ((Runtime) env.getSource()).totalMemory())
                                             // Ignore changes less than 1Kb
                                             .distinctUntilChanged(it -> it.intValue() / 1000000)
@@ -79,7 +80,7 @@ public class GraphQLController {
                                     .name("free")
                                     .type(GraphQLLong)
                                     .dataFetcher(env -> Flux
-                                            .intervalMillis(1000)
+                                            .interval(Duration.ofSeconds(1))
                                             .map(__ -> ((Runtime) env.getSource()).freeMemory())
                                             // Ignore changes less than 1Mb
                                             .distinctUntilChanged(it -> it.intValue() / 1000000)

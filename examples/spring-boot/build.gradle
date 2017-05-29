@@ -1,10 +1,9 @@
 buildscript {
     ext {
-        springBootVersion = '2.0.0.BUILD-SNAPSHOT'
+        springBootVersion = '2.0.0.M1'
     }
     repositories {
         jcenter()
-        maven { url "https://repo.spring.io/snapshot" }
         maven { url "https://repo.spring.io/milestone" }
     }
     dependencies {
@@ -13,14 +12,13 @@ buildscript {
 }
 
 apply plugin: 'java'
-apply plugin: 'eclipse'
 apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
 
 sourceCompatibility = 1.8
 
 repositories {
     jcenter()
-    maven { url "https://repo.spring.io/snapshot" }
     maven { url "https://repo.spring.io/milestone" }
 }
 
@@ -28,7 +26,7 @@ dependencies {
     compile 'org.springframework.boot:spring-boot-starter-webflux'
 
     compile project(":core")
-    compile 'com.graphql-java:graphql-java:2.3.0'
+    compile 'com.graphql-java:graphql-java:3.0.0'
     compile 'com.google.guava:guava:21.0'
 
     compile 'org.webjars:webjars-locator:0.30'

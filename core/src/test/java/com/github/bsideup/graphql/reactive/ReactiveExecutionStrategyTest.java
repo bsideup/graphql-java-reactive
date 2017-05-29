@@ -38,7 +38,7 @@ public class ReactiveExecutionStrategyTest extends AbstractTest {
 
         assertThat(executionResult)
                 .isNotNull()
-                .satisfies(it -> assertThat(it.getData()).isNotNull().isInstanceOf(Publisher.class));
+                .satisfies(it -> assertThat(it.<Publisher<Change>>getData()).isNotNull().isInstanceOf(Publisher.class));
 
         Flowable.fromPublisher((Publisher<Change>) executionResult.getData()).timestamp(scheduler).subscribe(subscriber);
 

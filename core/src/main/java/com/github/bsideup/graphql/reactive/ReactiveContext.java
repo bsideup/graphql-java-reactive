@@ -9,7 +9,18 @@ class ReactiveContext extends ExecutionContext {
     final ExecutionContext parent;
 
     public ReactiveContext(ExecutionContext context, Object key) {
-        super(context.getGraphQLSchema(), context.getQueryStrategy(), context.getMutationStrategy(), context.getFragmentsByName(), context.getOperationDefinition(), context.getVariables(), context.getRoot());
+        super(
+                context.getInstrumentation(),
+                context.getExecutionId(),
+                context.getGraphQLSchema(),
+                context.getQueryStrategy(),
+                context.getMutationStrategy(),
+                context.getSubscriptionStrategy(),
+                context.getFragmentsByName(),
+                context.getOperationDefinition(),
+                context.getVariables(),
+                context.getRoot()
+        );
         this.key = key;
         this.parent = context;
     }
