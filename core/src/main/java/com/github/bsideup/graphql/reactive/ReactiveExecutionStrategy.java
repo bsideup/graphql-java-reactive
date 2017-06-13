@@ -20,7 +20,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static graphql.execution.ExecutionParameters.newParameters;
 import static java.util.stream.Collectors.toList;
 
 public class ReactiveExecutionStrategy extends ExecutionStrategy {
@@ -33,17 +32,11 @@ public class ReactiveExecutionStrategy extends ExecutionStrategy {
                 context,
                 source,
                 __ -> fields.entrySet().stream(),
-                (entry, sourceValue) -> {
-                    ReactiveContext subContext = new ReactiveContext(context, entry.getKey());
-
-                    ExecutionParameters newParameters = newParameters()
-                            .typeInfo(parameters.typeInfo())
-                            .fields(parameters.fields())
-                            .arguments(parameters.arguments())
-                            .source(source == null ? null : sourceValue)
-                            .build();
-                    return resolveField(subContext, newParameters, entry.getValue());
-                },
+                (entry, sourceValue) -> resolveField(
+                        new ReactiveContext(context, entry.getKey()),
+                        transformParametersSource(parameters, source == null ? null : sourceValue),
+                        entry.getValue()
+                ),
                 results -> {
                     Map<Object, Object> result = new HashMap<>();
                     for (Object entry : results) {
@@ -77,15 +70,7 @@ public class ReactiveExecutionStrategy extends ExecutionStrategy {
 
         if ((fieldType instanceof GraphQLScalarType || fieldType instanceof GraphQLEnumType) && result instanceof Publisher) {
             Flowable<Change> changesFlow = Flowable.fromPublisher((Publisher<?>) result)
-                    .map(it -> {
-                        ExecutionParameters newParameters = newParameters()
-                                .source(it)
-                                .fields(parameters.fields())
-                                .typeInfo(parameters.typeInfo())
-                                .build();
-
-                        return new Change(context, completeValue(context, newParameters, fields).getData());
-                    });
+                    .map(it -> new Change(context, completeValue(context, transformParametersSource(parameters, it), fields).getData()));
 
             return new ExecutionResultImpl(changesFlow, null);
         }
@@ -107,15 +92,11 @@ public class ReactiveExecutionStrategy extends ExecutionStrategy {
                         AtomicInteger i = new AtomicInteger();
                         return stream.map(it -> new SimpleEntry<>(i.getAndIncrement(), adapt(it)));
                     },
-                    (entry, __) -> {
-                        ExecutionParameters newParameters = ExecutionParameters.newParameters()
-                                .source(entry.getValue())
-                                .fields(parameters.fields())
-                                .arguments(parameters.arguments())
-                                .typeInfo(parameters.typeInfo().asType(wrappedType))
-                                .build();
-                        return completeValue(new ReactiveContext(context, entry.getKey()), newParameters, fields);
-                    },
+                    (entry, __) -> completeValue(
+                            new ReactiveContext(context, entry.getKey()),
+                            transformParametersSource(parameters, entry.getValue(), parameters.typeInfo().asType(wrappedType)),
+                            fields
+                    ),
                     results -> Stream.of(results)
                             .map(SimpleEntry.class::cast)
                             .sorted(Comparator.comparingInt(it -> (Integer) it.getKey()))
@@ -125,6 +106,19 @@ public class ReactiveExecutionStrategy extends ExecutionStrategy {
         }
 
         return super.completeValue(context, parameters, fields);
+    }
+
+    protected ExecutionParameters transformParametersSource(ExecutionParameters parameters, Object newSource) {
+        return transformParametersSource(parameters, newSource, parameters.typeInfo());
+    }
+
+    protected ExecutionParameters transformParametersSource(ExecutionParameters parameters, Object newSource, TypeInfo typeInfo) {
+        return ExecutionParameters.newParameters()
+                .source(newSource)
+                .fields(parameters.fields())
+                .arguments(parameters.arguments())
+                .typeInfo(typeInfo)
+                .build();
     }
 
     protected <K, V> ExecutionResultImpl complexChangesFlow(
