@@ -20,6 +20,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 
 public class ReactiveExecutionStrategy extends ExecutionStrategy {
@@ -167,6 +168,8 @@ public class ReactiveExecutionStrategy extends ExecutionStrategy {
                     .combineLatest((Iterable<Flowable<Entry<K, Object>>>) subFlows::iterator, resultCombiner)
                     // Take one, then start producing changes
                     .take(1)
+                    // Fallback to empty array if subFlows are empty
+                    .singleElement().toSingle(emptyList()).toFlowable()
                     .doOnNext(__ -> initialized.set(true))
                     .map(it -> new Change(context, it))
                     .mergeWith(Flowable

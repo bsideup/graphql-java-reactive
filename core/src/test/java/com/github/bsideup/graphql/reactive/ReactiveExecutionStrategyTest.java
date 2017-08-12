@@ -15,10 +15,12 @@ import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
 import java.time.Duration;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.function.Consumer;
 
 import static graphql.schema.GraphQLObjectType.newObject;
+import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -156,7 +158,7 @@ public class ReactiveExecutionStrategyTest extends AbstractTest {
 
         subscriber
                 .assertChanges(it -> it.containsExactly(
-                        tuple("01:800", "", ImmutableMap.of("a", Arrays.asList(ImmutableMap.of("b", "0 0"), ImmutableMap.of("b", "0 1"), ImmutableMap.of("b", "0 2")))),
+                        tuple("01:800", "", ImmutableMap.of("a", asList(ImmutableMap.of("b", "0 0"), ImmutableMap.of("b", "0 1"), ImmutableMap.of("b", "0 2")))),
 
                         tuple("02:100", "a[0].b", "1 0"),
                         tuple("02:100", "a[1].b", "1 1"),
@@ -169,6 +171,42 @@ public class ReactiveExecutionStrategyTest extends AbstractTest {
                         tuple("02:700", "a[0].b", "3 0"),
                         tuple("02:700", "a[1].b", "3 1"),
                         tuple("02:700", "a[2].b", "3 2")
+                ))
+                .assertComplete();
+    }
+
+    @Test
+    public void testArrayStartsWith() throws Exception {
+        GraphQLObjectType innerType = newObject()
+                .name("Inner")
+                .field(newStringField("b").staticValue("foo"))
+                .build();
+
+        GraphQLSchema schema = newQuerySchema(it -> it
+                .field(
+                        newField("a", new GraphQLList(innerType))
+                                .dataFetcher(env -> Flowable
+                                        .just(asList(true, true, true))
+                                        .delay(1, SECONDS, scheduler)
+                                        .startWith(new ArrayList<Boolean>())
+                                )
+                )
+        );
+
+        ExecutionResult executionResult = new GraphQL(schema, strategy).execute("{ a { b } }");
+
+        Flowable.fromPublisher((Publisher<Change>) executionResult.getData()).timestamp(scheduler).subscribe(subscriber);
+
+        scheduler.advanceTimeBy(2, SECONDS);
+
+        subscriber
+                .assertChanges(it -> it.containsExactly(
+                        tuple("00:000", "", ImmutableMap.of("a", emptyList())),
+
+                        tuple("01:000", "a", asList(ImmutableMap.of("b", "foo"), ImmutableMap.of("b", "foo"), ImmutableMap.of("b", "foo"))),
+                        // FIXME this values are duplicated. For now, let's call it "at least once" delivery :D
+                        tuple("01:000", "a[1]", ImmutableMap.of("b", "foo")),
+                        tuple("01:000", "a[2]", ImmutableMap.of("b", "foo"))
                 ))
                 .assertComplete();
     }
